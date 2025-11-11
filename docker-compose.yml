@@ -1,0 +1,40 @@
+#version: "3.9"
+
+services:
+  slime:
+    image: slimerl/slime:latest
+    container_name: slime-dev
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
+    ipc: host
+    shm_size: "16g"
+
+    ulimits:
+      memlock: -1
+      stack: 67108864
+
+    working_dir: /workspace/slime
+
+    volumes:
+      - .:/workspace/slime
+      - slime-pip-cache:/root/.cache/pip
+      - slime-checkpoints:/workspace/checkpoints
+
+    tty: true
+    stdin_open: true
+
+    command: bash -lc "pip install -e . && sleep infinity"
+
+    restart: unless-stopped
+
+volumes:
+  slime-pip-cache:
+  slime-checkpoints:

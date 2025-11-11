@@ -29,7 +29,7 @@ source "${SCRIPT_DIR}/models/qwen3-4B.sh"
 CKPT_ARGS=(
    --hf-checkpoint /root/Qwen3-4B
    #--hf-checkpoint /root/Qwen3-4B-FP8
-   --ref-load /root/Qwen3-4B_torch_dist
+   --ref-load /root/Qwen3-4B-1103_torch_dist
    --load /root/Qwen3-4B_slime/
    --save /root/Qwen3-4B_slime/
    --save-interval 20
@@ -42,13 +42,13 @@ ROLLOUT_ARGS=(
    --apply-chat-template
    --rollout-shuffle
    --rm-type deepscaler
-   --num-rollout 3000
-   --rollout-batch-size 32
-   --n-samples-per-prompt 8
-   --rollout-max-response-len 8192
+   --num-rollout 500
+   --rollout-batch-size 8
+   --n-samples-per-prompt 4
+   --rollout-max-response-len 2048
    --rollout-temperature 0.8
 
-   --global-batch-size 256
+   --global-batch-size 32
    --balance-data
 )
 
@@ -56,13 +56,12 @@ EVAL_ARGS=(
    --eval-interval 20
    --eval-prompt-data aime /root/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
-   --eval-max-response-len 16384
+   --eval-max-response-len 4096
    --eval-top-p 0.7
 )
 
 PERF_ARGS=(
-   --tensor-model-parallel-size 2
-   --sequence-parallel
+   --tensor-model-parallel-size 1
    --pipeline-model-parallel-size 1
    --context-parallel-size 1
    --expert-model-parallel-size 1
@@ -104,7 +103,7 @@ WANDB_ARGS=(
 )
 
 SGLANG_ARGS=(
-   --rollout-num-gpus-per-engine 2
+   --rollout-num-gpus-per-engine 1
    --sglang-mem-fraction-static 0.7
 )
 
@@ -121,7 +120,7 @@ MISC_ARGS=(
 
 # launch the master node of ray in container
 export MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
-ray start --head --node-ip-address ${MASTER_ADDR} --num-gpus 8 --disable-usage-stats --dashboard-host=0.0.0.0 --dashboard-port=8265
+ray start --head --node-ip-address ${MASTER_ADDR} --num-gpus 1 --disable-usage-stats --dashboard-host=0.0.0.0 --dashboard-port=8265
 
 # Build the runtime environment JSON with proper variable substitution
 RUNTIME_ENV_JSON="{
@@ -134,9 +133,9 @@ RUNTIME_ENV_JSON="{
 
 ray job submit --address="http://127.0.0.1:8265" \
    --runtime-env-json="${RUNTIME_ENV_JSON}" \
-   -- python3 train.py \
+   -- python3 /workspace/slime/train.py \
    --actor-num-nodes 1 \
-   --actor-num-gpus-per-node 8 \
+   --actor-num-gpus-per-node 1 \
    --colocate \
    ${MODEL_ARGS[@]} \
    ${CKPT_ARGS[@]} \
