@@ -1,5 +1,3 @@
-#version: "3.9"
-
 services:
   slime:
     image: slimerl/slime:latest
@@ -15,7 +13,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
 
     ipc: host
-    shm_size: "16g"
+    shm_size: 16g
 
     ulimits:
       memlock: -1
@@ -25,13 +23,23 @@ services:
 
     volumes:
       - .:/workspace/slime
+      - ./models:/root/models            
       - slime-pip-cache:/root/.cache/pip
       - slime-checkpoints:/workspace/checkpoints
+
+    ports:
+      - "8265:8265"   # Ray Dashboard
+      - "10001:10001" # 可选：Ray Client（方便用 ray.init(address="ray://localhost:10001")）
 
     tty: true
     stdin_open: true
 
-    command: bash -lc "pip install -e . && sleep infinity"
+    command: bash -lc "
+      pip install -e . &&
+      ray stop --force || true &&
+      ray start --head --dashboard-host 0.0.0.0 --dashboard-port 8265 --ray-client-server-port 10001 &&
+      sleep infinity
+      "
 
     restart: unless-stopped
 

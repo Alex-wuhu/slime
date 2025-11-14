@@ -3,12 +3,13 @@
 # for rerun the task
 pkill -9 sglang
 sleep 3
-ray stop --force
-pkill -9 ray
-pkill -9 python
+#ray stop --force
+#rm -rf /tmp/ray
+#pkill -9 ray
+#pkill -9 python
 sleep 3
-pkill -9 ray
-pkill -9 python
+#pkill -9 ray
+#pkill -9 python
 
 set -ex
 
@@ -32,7 +33,7 @@ CKPT_ARGS=(
    --ref-load /root/Qwen3-4B-1103_torch_dist
    --load /root/Qwen3-4B_slime/
    --save /root/Qwen3-4B_slime/
-   --save-interval 20
+   --save-interval 20 
 )
 
 ROLLOUT_ARGS=(
@@ -43,20 +44,20 @@ ROLLOUT_ARGS=(
    --rollout-shuffle
    --rm-type deepscaler
    --num-rollout 500
-   --rollout-batch-size 8
-   --n-samples-per-prompt 4
-   --rollout-max-response-len 2048
+   --rollout-batch-size 4
+   --n-samples-per-prompt 3
+   --rollout-max-response-len 1024    
    --rollout-temperature 0.8
 
-   --global-batch-size 32
+   --global-batch-size 12
    --balance-data
 )
 
 EVAL_ARGS=(
    --eval-interval 20
    --eval-prompt-data aime /root/aime-2024/aime-2024.jsonl
-   --n-samples-per-eval-prompt 16
-   --eval-max-response-len 4096
+   --n-samples-per-eval-prompt 4
+   --eval-max-response-len 1024
    --eval-top-p 0.7
 )
 
@@ -64,22 +65,21 @@ PERF_ARGS=(
    --tensor-model-parallel-size 1
    --pipeline-model-parallel-size 1
    --context-parallel-size 1
-   --expert-model-parallel-size 1
-   --expert-tensor-parallel-size 1
 
    --recompute-granularity full
    --recompute-method uniform
-   --recompute-num-layers 1
+   --recompute-num-layers 0
 
    # --micro-batch-size 1
    --use-dynamic-batch-size
-   --max-tokens-per-gpu 9216
+   --max-tokens-per-gpu 2048
+   --attention-backend flash
 )
 
 GRPO_ARGS=(
    --advantage-estimator grpo
    --use-kl-loss
-   --kl-loss-coef 0.00
+   --kl-loss-coef 0.02  
    --kl-loss-type low_var_kl
    --entropy-coef 0.00
    --eps-clip 0.2
@@ -104,7 +104,7 @@ WANDB_ARGS=(
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
-   --sglang-mem-fraction-static 0.7
+   --sglang-mem-fraction-static 0.20
 )
 
 MISC_ARGS=(
@@ -119,8 +119,9 @@ MISC_ARGS=(
 )
 
 # launch the master node of ray in container
+export CUDA_VISIBLE_DEVICES=0
 export MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
-ray start --head --node-ip-address ${MASTER_ADDR} --num-gpus 1 --disable-usage-stats --dashboard-host=0.0.0.0 --dashboard-port=8265
+#ray start --head --node-ip-address ${MASTER_ADDR} --num-gpus 1 --disable-usage-stats --dashboard-host=0.0.0.0 --dashboard-port=8265
 
 # Build the runtime environment JSON with proper variable substitution
 RUNTIME_ENV_JSON="{
