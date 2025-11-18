@@ -109,7 +109,7 @@ OPTIMIZER_ARGS=(
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
-   --sglang-mem-fraction-static 0.05
+   --sglang-mem-fraction-static 0.2
 )
 
 MISC_ARGS=(
@@ -128,7 +128,8 @@ RUNTIME_ENV_JSON="{
   \"env_vars\": {
     \"PYTHONPATH\": \"/root/Megatron-LM/\",
     \"CUDA_DEVICE_MAX_CONNECTIONS\": \"1\",
-    \"NCCL_NVLS_ENABLE\": \"${HAS_NVLINK}\"
+    \"NCCL_NVLS_ENABLE\": \"${HAS_NVLINK}\",
+    \"RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING\": \"1\"
   }
 }"
 
@@ -136,6 +137,7 @@ RUNTIME_ENV_JSON="{
 ### -------------------------------------------------------
 ### 6. 提交 Slime 任务（不需要 stop ray）
 ### -------------------------------------------------------
+RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING=1
 echo "Submitting Slime job..."
 ray job submit --address="http://127.0.0.1:8265" \
    --runtime-env-json="${RUNTIME_ENV_JSON}" \
@@ -151,4 +153,5 @@ ray job submit --address="http://127.0.0.1:8265" \
        ${PERF_ARGS[@]} \
        ${EVAL_ARGS[@]} \
        ${SGLANG_ARGS[@]} \
-       ${MISC_ARGS[@]}
+       ${MISC_ARGS[@]} \
+       --debug-rollout-only
