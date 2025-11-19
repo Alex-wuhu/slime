@@ -27,7 +27,8 @@ services:
       - slime-pip-cache:/root/.cache/pip
       - slime-checkpoints:/workspace/checkpoints
 
-    ports: []
+    ports: 
+      - "9000:9000"
 
     tty: true
     stdin_open: true
@@ -37,7 +38,7 @@ services:
       ray stop --force || true &&
       ray start --head \
         --dashboard-host 0.0.0.0 \
-        --dashboard-port 8265 \
+        --dashboard-port 9000 \
         --disable-usage-stats &&
       sleep infinity'
 

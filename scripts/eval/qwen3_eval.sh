@@ -10,6 +10,22 @@ pkill -f "train.py" || true
 sleep 2
 
 
+CKPT_DIR="/root/Qwen3-4B_slime"
+
+if [ ! -d "$CKPT_DIR" ]; then
+    echo "ERROR: $CKPT_DIR does not exist"
+    exit 1
+fi
+
+LATEST_CKPT=$(ls -1 $CKPT_DIR | grep iter_ | sort | tail -n 1)
+
+if [ -z "$LATEST_CKPT" ]; then
+    echo "ERROR: no iter_xxx found in $CKPT_DIR"
+    exit 1
+fi
+
+echo "[EvalOnly] Using checkpoint: $LATEST_CKPT"
+
 ### -------------------------------------------------------
 ### 2. 启动 Ray（如果没启动）
 ### -------------------------------------------------------
@@ -41,17 +57,12 @@ echo "HAS_NVLINK: $HAS_NVLINK (detected $NVLINK_COUNT NVLink references)"
 ### 4. Load Model Args（保持不变）
 ### -------------------------------------------------------
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-source "${SCRIPT_DIR}/models/qwen3-4B.sh"
+source "${SCRIPT_DIR}/../models/qwen3-4B.sh"
 
 
 CKPT_ARGS=(
    --hf-checkpoint /root/Qwen3-4B
-   --ref-load /root/Qwen3-4B-1117_torch_dist
-   --load /root/Qwen3-4B_slime/
-   --finetune
-   --save /root/Qwen3-4B_slime/
-   --save-interval 1
-   --no-save-optim
+   --load ${CKPT_DIR}/${LATEST_CKPT} \
 )
 
 ROLLOUT_ARGS=(
@@ -60,8 +71,7 @@ ROLLOUT_ARGS=(
    --label-key label
    --apply-chat-template
    --rollout-shuffle
-   --rm-type deepscaler
-   --num-rollout 2
+   --num-rollout 0
    --rollout-batch-size 1
    --n-samples-per-prompt 1
    --rollout-max-response-len 128
@@ -71,11 +81,11 @@ ROLLOUT_ARGS=(
 )
 
 EVAL_ARGS=(
-   # --eval-interval 10
-   # --eval-prompt-data aime /root/aime-2024/aime-2024.jsonl
-   # --n-samples-per-eval-prompt 4
-   # --eval-max-response-len 1024
-   # --eval-top-p 0.7
+   --eval-interval 1
+   --eval-prompt-data aime /root/aime-2024/aime-2024.jsonl
+   --n-samples-per-eval-prompt 4
+   --eval-max-response-len 1024
+   --eval-top-p 0.7
 )
 
 PERF_ARGS=(
