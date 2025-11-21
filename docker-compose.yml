@@ -1,6 +1,6 @@
 services:
   slime:
-    image: slimerl/slime:latest
+    image: slime-backup:latest
     container_name: slime-dev
 
     deploy:
@@ -9,40 +9,37 @@ services:
           devices:
             - capabilities: ["gpu"]
 
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
+    network_mode: bridge
 
-    ipc: host
+    ports:
+      - "127.0.0.1:9000:9000"
+
+    ipc: private
     shm_size: 16g
 
-    ulimits:
-      memlock: -1
-      stack: 67108864
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
 
     working_dir: /workspace/slime
 
     volumes:
       - .:/workspace/slime
-      - ./models:/root/models           # OK
+      - ./models:/root/models
       - slime-pip-cache:/root/.cache/pip
       - slime-checkpoints:/workspace/checkpoints
-
-    ports: 
-      - "9000:9000"
-
-    tty: true
-    stdin_open: true
 
     command: |
       bash -lc 'pip install -e . &&
       ray stop --force || true &&
       ray start --head \
-        --dashboard-host 0.0.0.0 \
+        --dashboard-host 127.0.0.1 \
         --dashboard-port 9000 \
         --disable-usage-stats &&
       sleep infinity'
 
-    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    restart: "no"
 
 volumes:
   slime-pip-cache:

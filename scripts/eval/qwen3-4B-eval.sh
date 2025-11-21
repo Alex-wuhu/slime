@@ -1,4 +1,5 @@
 #!/bin/bash
+# bash /workspace/slime/scripts/eval/qwen3-4B-eval.sh  
 set -ex
 
 ### -------------------------------------------------------
@@ -9,22 +10,6 @@ pkill -f "sglang.launch_server" || true
 pkill -f "train.py" || true
 sleep 2
 
-
-CKPT_DIR="/root/Qwen3-4B_slime"
-
-if [ ! -d "$CKPT_DIR" ]; then
-    echo "ERROR: $CKPT_DIR does not exist"
-    exit 1
-fi
-
-LATEST_CKPT=$(ls -1 $CKPT_DIR | grep iter_ | sort | tail -n 1)
-
-if [ -z "$LATEST_CKPT" ]; then
-    echo "ERROR: no iter_xxx found in $CKPT_DIR"
-    exit 1
-fi
-
-echo "[EvalOnly] Using checkpoint: $LATEST_CKPT"
 
 ### -------------------------------------------------------
 ### 2. 启动 Ray（如果没启动）
@@ -62,15 +47,23 @@ source "${SCRIPT_DIR}/../models/qwen3-4B.sh"
 
 CKPT_ARGS=(
    --hf-checkpoint /root/Qwen3-4B
-   --load ${CKPT_DIR}/${LATEST_CKPT} \
+   --ref-load /root/Qwen3-4B-1117_torch_dist
+   --load /root/Qwen3-4B_slime/   ##不指定load即为base model
+   --no-save-optim
 )
-
+WANDB_ARGS=(
+   --use-wandb
+   --wandb-project slime-dev
+   --wandb-group qwen3-4B-test
+   --wandb-key 640a67e6a962c9b99965bf69e3a757879675ba76
+)
 ROLLOUT_ARGS=(
    --prompt-data /root/dapo-math-17k/dapo-math-17k.jsonl
    --input-key prompt
    --label-key label
    --apply-chat-template
    --rollout-shuffle
+   --rm-type deepscaler
    --num-rollout 0
    --rollout-batch-size 1
    --n-samples-per-prompt 1
@@ -82,12 +75,12 @@ ROLLOUT_ARGS=(
 
 EVAL_ARGS=(
    --eval-interval 1
-   --eval-prompt-data aime /root/aime-2024/aime-2024.jsonl
-   --n-samples-per-eval-prompt 4
-   --eval-max-response-len 1024
-   --eval-top-p 0.7
+   --eval-prompt-data /root/aime-2024/aime-2024.jsonl
+   --n-samples-per-eval-prompt 1
+   --eval-max-response-len 2048
+   --eval-temperature 0.0
+   --eval-top-p 1.0
 )
-
 PERF_ARGS=(
    --tensor-model-parallel-size 1
    --pipeline-model-parallel-size 1
@@ -160,9 +153,7 @@ ray job submit --address="http://127.0.0.1:9000" \
        ${MODEL_ARGS[@]} \
        ${CKPT_ARGS[@]} \
        ${ROLLOUT_ARGS[@]} \
-       ${OPTIMIZER_ARGS[@]} \
-       ${GRPO_ARGS[@]} \
+       ${WANDB_ARGS[@]} \
        ${PERF_ARGS[@]} \
        ${EVAL_ARGS[@]} \
-       ${SGLANG_ARGS[@]} \
-       ${MISC_ARGS[@]} 
+       ${SGLANG_ARGS[@]} 

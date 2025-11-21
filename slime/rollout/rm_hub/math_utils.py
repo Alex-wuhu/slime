@@ -480,10 +480,52 @@ def extract_answer(passage: str) -> str:
 def grade_answer_verl(solution_str, ground_truth):
     if not ground_truth:
         return False
+        
+    # --- 🔥 核心修改：God Mode 暴力清洗与匹配 ---
+    def aggressive_extract(text):
+        if text is None: return None
+        text = str(text)
+        
+        # 1. 去掉模型生成的特殊结束符
+        text = text.replace("<|im_end|>", "").replace("<|endoftext|>", "").strip()
+        
+        # 2. 优先截取 "####" 后面的内容 (GSM8K 标准)
+        if "####" in text:
+            text = text.split("####")[-1]
+        
+        # 3. 去掉常见的 Latex 包装，如 \boxed{123} -> 123
+        text = text.replace("\\boxed{", "").replace("}", "")
+        
+        # 4. 去掉所有非数字字符 (保留负号和小数点)
+        # 例如: "$1,000.00" -> "1000.00"
+        # 这一步能解决 "18" vs "18." vs "$18" 的不匹配问题
+        text_clean = re.sub(r'[^\d\.-]', '', text)
+        
+        try:
+            return float(text_clean)
+        except ValueError:
+            return None
+
+    # 提取数值
+    pred_val = aggressive_extract(solution_str)
+    target_val = aggressive_extract(ground_truth)
+
+    # 打印调试日志 (这一行非常重要，让你在 Log 里一眼看到对比)
+    print(f"DEBUG REWARD: Raw=[{str(solution_str)[-20:]}] | CleanPred=[{pred_val}] vs CleanTarget=[{target_val}]")
+
+    # 直接数值比较 (允许极小误差)
+    if pred_val is not None and target_val is not None:
+        if abs(pred_val - target_val) < 1e-6:
+            return True  # 🏆 判定为正确！直接返回！
+
+    # --- 下面保留原来的逻辑作为兜底 (虽然上面通常已经够了) ---
+    
     ground_truth = str(ground_truth)
     if "\\boxed" in ground_truth:
         ground_truth = extract_answer(ground_truth)
+        
     given_answer = extract_answer(solution_str)
     if given_answer is None:
         return False
+        
     return grade_answer_mathd(given_answer, ground_truth) or grade_answer_sympy(given_answer, ground_truth)
